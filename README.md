@@ -1,4 +1,4 @@
-# Hell Let Loose Android Intelligence Officer
+# Hell Let Loose Spy
 Resource estimator and cooldown tracker for opposing team in Hell let Loose. 
 
 <img src="./doc/main.gif" alt="GUI in use">
