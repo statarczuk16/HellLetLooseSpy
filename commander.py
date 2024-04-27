@@ -15,9 +15,14 @@ class DummyCommander:
         self.match_remaining = 90
         self.gui_root = root
 
-        self.gui_root.fuel_node_gui = tkinter.IntVar(0)
-        self.gui_root.munitions_node_gui = tkinter.IntVar(0)
-        self.gui_root.manpower_node_gui = tkinter.IntVar(0)
+        self.gui_root.fuel_node_gui = tkinter.IntVar(value=0)
+        self.gui_root.munitions_node_gui = tkinter.IntVar(value=0)
+        self.gui_root.manpower_node_gui = tkinter.IntVar(value=0)
+
+        self.settings_frame = None
+        self.logger_frame = None
+        self.button_frame = None
+        self.resource_frame = None
 
 
         self.ability_to_active_cooldown_seconds = {}
@@ -78,12 +83,13 @@ class DummyCommander:
 
     def gui_update_resources(self):
         try:
+            parent_frame = self.resource_frame
             self.tracker.fuel_nodes = self.gui_root.fuel_node_gui.get()
             self.tracker.manpower_nodes = self.gui_root.manpower_node_gui.get()
             self.tracker.munitions_nodes = self.gui_root.munitions_node_gui.get()
-            self.gui_root.children['resource_count_frame'].children['fuel_count'].config(text=str(self.tracker.fuel))
-            self.gui_root.children['resource_count_frame'].children['munitions_count'].config(text=str(self.tracker.munitions))
-            self.gui_root.children['resource_count_frame'].children['manpower_count'].config(text=str(self.tracker.manpower))
+            parent_frame.children['fuel_count'].config(text=str(self.tracker.fuel))
+            parent_frame.children['munitions_count'].config(text=str(self.tracker.munitions))
+            parent_frame.children['manpower_count'].config(text=str(self.tracker.manpower))
             fuel_per = 30 + (self.tracker.fuel_nodes * 10)
             ammo_per = 30 + (self.tracker.munitions_nodes * 10)
             man_per = 30 + (self.tracker.manpower_nodes * 10)
@@ -91,13 +97,15 @@ class DummyCommander:
                 fuel_per += (self.tracker.fuel_nodes * 10)
                 ammo_per += (self.tracker.munitions_nodes * 10)
                 man_per += (self.tracker.manpower_nodes * 10)
-            self.gui_root.children['resource_count_frame'].children['fuel_gain'].config(text=str(fuel_per)+' /min')
-            self.gui_root.children['resource_count_frame'].children['munitions_gain'].config(text=str(ammo_per)+' /min')
-            self.gui_root.children['resource_count_frame'].children['manpower_gain'].config(text=str(man_per)+' /min')
+            parent_frame.children['fuel_gain'].config(text=str(fuel_per)+' /min')
+            parent_frame.children['munitions_gain'].config(text=str(ammo_per)+' /min')
+            parent_frame.children['manpower_gain'].config(text=str(man_per)+' /min')
         except Exception as ex:
+            print("Exception in gui_update_resources")
             print(str(ex))
 
     def restart_match(self, match_elapsed_time_s = 0):
+        parent_frame = self.button_frame
         self.clock.__init__()
         self.ability_to_active_cooldown_seconds.clear()
         self.tracker = resource_tracker.Tracker()
@@ -105,10 +113,10 @@ class DummyCommander:
         for used_ability in self.ability_to_cooldown_cost_minutes:
             self.ability_to_active_cooldown_seconds[used_ability] = self.ability_to_cooldown_cost_minutes[used_ability] * 60.0
             button_name = "progress_" + used_ability
-            self.gui_root.children['button_frame'].children[button_name]["value"] = 100
+            parent_frame.children[button_name]["value"] = 100
             #gui_root.children['button_frame'].children[button_name]["text"] = str(self.ability_to_active_cooldown_seconds[used_ability])
             button_name = "button_" + used_ability
-            self.gui_root.children['button_frame'].children[button_name]["state"] = tkinter.DISABLED
+            parent_frame.children[button_name]["state"] = tkinter.DISABLED
 
     def set_game_clock_from_string(self, new_time_string):
         try:
@@ -162,9 +170,9 @@ class DummyCommander:
 
                 self.ability_to_active_cooldown_seconds[ability] = self.ability_to_cooldown_cost_minutes[ability] * 60.0
                 button_name = "button_" + ability
-                self.gui_root.children['button_frame'].children[button_name]["state"]=tkinter.DISABLED
+                self.button_frame.children[button_name]["state"]=tkinter.DISABLED
                 button_name = "progress_" + ability
-                self.gui_root.children['button_frame'].children[button_name]["value"] = 100
+                self.button_frame.children[button_name]["value"] = 100
 
                 if ability == "ENCOURAGE":
                     self.tracker.encourage = True
@@ -196,6 +204,7 @@ class DummyCommander:
 
     async def run_accumulator(self):
         while True:
+            print("Waiting for accumulation")
             await self.clock.wait_for_time(common.ACCUMULATE_INTERVAL_S)
             self.tracker.accumuluate(1)
             self.gui_update_resources()
@@ -205,12 +214,13 @@ class DummyCommander:
             try:
                 await asyncio.sleep(1)
 
-                frame_name = "config_frame"
+                gui_parent = self.settings_frame
                 label_name = "label_" + "GAME_CLOCK"
                 game_clock_seconds = self.clock.get_game_clock_s()
                 game_clock_str = str(datetime.timedelta(seconds=game_clock_seconds))
 
-                self.gui_root.children[frame_name].children[label_name]["text"] = "Game Clock: " + game_clock_str
+
+                gui_parent.children[label_name]["text"] = "Game Clock: " + game_clock_str
 
                 abilities_no_longer_on_cooldown = []
                 for used_ability in self.ability_to_active_cooldown_seconds:
@@ -219,7 +229,7 @@ class DummyCommander:
                     button_name = "progress_" + used_ability
                     value = self.ability_to_active_cooldown_seconds[used_ability] / (self.ability_to_cooldown_cost_minutes[used_ability] * 60.0)
                     value *= 100.0
-                    self.gui_root.children['button_frame'].children[button_name]["value"] = value
+                    self.button_frame.children[button_name]["value"] = value
 
                     if self.ability_to_active_cooldown_seconds[used_ability] <= 0:
                         abilities_no_longer_on_cooldown.append(used_ability)

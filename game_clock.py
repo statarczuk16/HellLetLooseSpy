@@ -25,6 +25,7 @@ class Clock(object):
         print("Waiting for " + str(time_to_return_at))
         while self.counter < time_to_return_at:
             await self.tick.wait()
+        print("Done!")
         return
 
     def set_counter(self, time_seconds):
