@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import tkinter
 import datetime
 
@@ -15,9 +16,21 @@ class DummyCommander:
         self.match_remaining = 90
         self.gui_root = root
 
-        self.gui_root.fuel_node_gui = tkinter.IntVar(0)
-        self.gui_root.munitions_node_gui = tkinter.IntVar(0)
-        self.gui_root.manpower_node_gui = tkinter.IntVar(0)
+        self.gui_root.fuel_node_gui = tkinter.IntVar(value=0)
+        self.gui_root.munitions_node_gui = tkinter.IntVar(value=0)
+        self.gui_root.manpower_node_gui = tkinter.IntVar(value=0)
+
+        self.settings_frame = None
+        self.logger_frame = None
+        self.button_frame = None
+        self.resource_frame = None
+
+        self.recon_tank_alive = True
+        self.medium_tank_alive = True
+        self.heavy_tanks_alive = 0
+
+        self.heavy_tanks_desired = 6
+
 
 
         self.ability_to_active_cooldown_seconds = {}
@@ -78,12 +91,13 @@ class DummyCommander:
 
     def gui_update_resources(self):
         try:
+            parent_frame = self.resource_frame
             self.tracker.fuel_nodes = self.gui_root.fuel_node_gui.get()
             self.tracker.manpower_nodes = self.gui_root.manpower_node_gui.get()
             self.tracker.munitions_nodes = self.gui_root.munitions_node_gui.get()
-            self.gui_root.children['resource_count_frame'].children['fuel_count'].config(text=str(self.tracker.fuel))
-            self.gui_root.children['resource_count_frame'].children['munitions_count'].config(text=str(self.tracker.munitions))
-            self.gui_root.children['resource_count_frame'].children['manpower_count'].config(text=str(self.tracker.manpower))
+            parent_frame.children['fuel_count'].config(text=str(self.tracker.fuel))
+            parent_frame.children['munitions_count'].config(text=str(self.tracker.munitions))
+            parent_frame.children['manpower_count'].config(text=str(self.tracker.manpower))
             fuel_per = 30 + (self.tracker.fuel_nodes * 10)
             ammo_per = 30 + (self.tracker.munitions_nodes * 10)
             man_per = 30 + (self.tracker.manpower_nodes * 10)
@@ -91,13 +105,15 @@ class DummyCommander:
                 fuel_per += (self.tracker.fuel_nodes * 10)
                 ammo_per += (self.tracker.munitions_nodes * 10)
                 man_per += (self.tracker.manpower_nodes * 10)
-            self.gui_root.children['resource_count_frame'].children['fuel_gain'].config(text=str(fuel_per)+' /min')
-            self.gui_root.children['resource_count_frame'].children['munitions_gain'].config(text=str(ammo_per)+' /min')
-            self.gui_root.children['resource_count_frame'].children['manpower_gain'].config(text=str(man_per)+' /min')
+            parent_frame.children['fuel_gain'].config(text=str(fuel_per)+' /min')
+            parent_frame.children['munitions_gain'].config(text=str(ammo_per)+' /min')
+            parent_frame.children['manpower_gain'].config(text=str(man_per)+' /min')
         except Exception as ex:
+            print("Exception in gui_update_resources")
             print(str(ex))
 
     def restart_match(self, match_elapsed_time_s = 0):
+        parent_frame = self.button_frame
         self.clock.__init__()
         self.ability_to_active_cooldown_seconds.clear()
         self.tracker = resource_tracker.Tracker()
@@ -105,10 +121,10 @@ class DummyCommander:
         for used_ability in self.ability_to_cooldown_cost_minutes:
             self.ability_to_active_cooldown_seconds[used_ability] = self.ability_to_cooldown_cost_minutes[used_ability] * 60.0
             button_name = "progress_" + used_ability
-            self.gui_root.children['button_frame'].children[button_name]["value"] = 100
+            parent_frame.children[button_name]["value"] = 100
             #gui_root.children['button_frame'].children[button_name]["text"] = str(self.ability_to_active_cooldown_seconds[used_ability])
             button_name = "button_" + used_ability
-            self.gui_root.children['button_frame'].children[button_name]["state"] = tkinter.DISABLED
+            parent_frame.children[button_name]["state"] = tkinter.DISABLED
 
     def set_game_clock_from_string(self, new_time_string):
         try:
@@ -137,38 +153,63 @@ class DummyCommander:
         self.gui_update_resources()
 
 
+    def can_use_ability(self, ability):
+        resource = self.ability_to_resource_type[ability]
+        cost = self.ability_to_resource_cost[ability]
+        success = False
+        reason = ""
+        if resource == common.Resource.FUEL and self.tracker.fuel >= cost and ability not in self.ability_to_active_cooldown_seconds:
+            success = True
+        elif resource == common.Resource.MANPOWER and self.tracker.manpower >= cost and ability not in self.ability_to_active_cooldown_seconds:
+            success = True
+        elif resource == common.Resource.MUNITIONS and self.tracker.munitions >= cost and ability not in self.ability_to_active_cooldown_seconds:
+            success = True
+        else:
+            if ability in self.ability_to_active_cooldown_seconds:
+                reason = ("Commander cannot use " + ability + " cooldown remaining " + str(
+                    self.ability_to_active_cooldown_seconds[ability]) + " seconds")
+            else:
+                reason = ("Commander cannot use " + ability + " cost too much: " + str(cost))
+        return success, reason
 
+    def record_loss(self, lost):
+        try:
+            logger = logging.getLogger("HLLLogger")
+
+        except Exception as ex:
+            print("Exception using commander ability: " + str(lost))
+            print(str(ex))
     def use_ability(self, ability):
         try:
-            resource = self.ability_to_resource_type[ability]
-            cost = self.ability_to_resource_cost[ability]
-            success = False
-            if resource == common.Resource.FUEL and self.tracker.fuel >= cost and ability not in self.ability_to_active_cooldown_seconds:
-                success = True
-                self.subtract_fuel(cost)
-            elif resource == common.Resource.MANPOWER and self.tracker.manpower >= cost and ability not in self.ability_to_active_cooldown_seconds:
-                success = True
-                self.subtract_manpower(cost)
-            elif resource == common.Resource.MUNITIONS and self.tracker.munitions >= cost and ability not in self.ability_to_active_cooldown_seconds:
-                success = True
-                self.subtract_munitions(cost)
-            else:
-                if ability in self.ability_to_active_cooldown_seconds:
-                    print("Commander cannot use " + ability + " cooldown remaining " + str(self.ability_to_active_cooldown_seconds[ability]) + " seconds")
-                else:
-                    print("Commander cannot use " + ability + " cost too much: " + str(cost))
-            if success:
-                print("Commander used ability " + ability)
+            logger = logging.getLogger("HLLLogger")
+            can_use, reason = self.can_use_ability(ability)
 
+            if can_use:
+                resource = self.ability_to_resource_type[ability]
+                cost = self.ability_to_resource_cost[ability]
+                if resource == common.Resource.FUEL:
+                    self.subtract_fuel(cost)
+                elif resource == common.Resource.MANPOWER:
+                    self.subtract_manpower(cost)
+                elif resource == common.Resource.MUNITIONS:
+                    self.subtract_munitions(cost)
                 self.ability_to_active_cooldown_seconds[ability] = self.ability_to_cooldown_cost_minutes[ability] * 60.0
                 button_name = "button_" + ability
-                self.gui_root.children['button_frame'].children[button_name]["state"]=tkinter.DISABLED
+                self.button_frame.children[button_name]["state"]=tkinter.DISABLED
                 button_name = "progress_" + ability
-                self.gui_root.children['button_frame'].children[button_name]["value"] = 100
+                self.button_frame.children[button_name]["value"] = 100
 
                 if ability == "ENCOURAGE":
                     self.tracker.encourage = True
                     self.gui_update_resources()
+                elif ability == "HEAVY_TANK":
+                    self.heavy_tanks_alive += 1
+                elif ability == "FREE_MEDIUM_TANK":
+                    self.medium_tank_alive = True
+
+                logger.info("Commander used ability: " + ability)
+            else:
+                logger.info("Commander cannot use ability " + ability + " because " + str(reason))
 
         except Exception as ex:
             print("Exception using commander ability: " + str(ability))
@@ -196,6 +237,7 @@ class DummyCommander:
 
     async def run_accumulator(self):
         while True:
+            print("Waiting for accumulation")
             await self.clock.wait_for_time(common.ACCUMULATE_INTERVAL_S)
             self.tracker.accumuluate(1)
             self.gui_update_resources()
@@ -205,13 +247,15 @@ class DummyCommander:
             try:
                 await asyncio.sleep(1)
 
-                frame_name = "config_frame"
+                gui_parent = self.settings_frame
                 label_name = "label_" + "GAME_CLOCK"
                 game_clock_seconds = self.clock.get_game_clock_s()
                 game_clock_str = str(datetime.timedelta(seconds=game_clock_seconds))
 
-                self.gui_root.children[frame_name].children[label_name]["text"] = "Game Clock: " + game_clock_str
 
+                gui_parent.children[label_name]["text"] = "Game Clock: " + game_clock_str
+
+                #Determine if an ability should come off cooldown
                 abilities_no_longer_on_cooldown = []
                 for used_ability in self.ability_to_active_cooldown_seconds:
 
@@ -219,12 +263,12 @@ class DummyCommander:
                     button_name = "progress_" + used_ability
                     value = self.ability_to_active_cooldown_seconds[used_ability] / (self.ability_to_cooldown_cost_minutes[used_ability] * 60.0)
                     value *= 100.0
-                    self.gui_root.children['button_frame'].children[button_name]["value"] = value
+                    self.button_frame.children[button_name]["value"] = value
 
                     if self.ability_to_active_cooldown_seconds[used_ability] <= 0:
                         abilities_no_longer_on_cooldown.append(used_ability)
                         button_name = "button_" + used_ability
-                        self.gui_root.children['button_frame'].children[button_name]["state"] = tkinter.NORMAL
+                        self.button_frame.children[button_name]["state"] = tkinter.NORMAL
                         if used_ability == "ENCOURAGE":
                             self.tracker.encourage = False
                     elif self.ability_to_active_cooldown_seconds[used_ability] > self.ability_to_cooldown_cost_minutes[used_ability] * 60.0:
@@ -232,6 +276,17 @@ class DummyCommander:
 
                 for ability in abilities_no_longer_on_cooldown:
                     self.ability_to_active_cooldown_seconds.pop(ability, None)
+
+                #if can use encourage, always use it
+                can_use, reason = self.can_use_ability("ENCOURAGE")
+                if can_use:
+                    self.use_ability("ENCOURAGE")
+                heavies_desired = int(self.settings_frame.children['entry_heavies_desired'].get())
+                self.heavy_tanks_desired = heavies_desired
+                can_use, reason = self.can_use_ability("HEAVY_TANK")
+                if can_use and heavies_desired > self.heavy_tanks_alive:
+                    self.use_ability("HEAVY_TANK")
+
 
 
             except Exception as ex:
