@@ -24,6 +24,7 @@ class WidgetLogger(logging.Handler):
     def emit(self, record):
         # Enable the widget to allow new text to be inserted
         self.widget.config(state='normal')
+        print(f"logger message: {record.msg}")
 
         # Append log message to the widget
         self.widget.insert('insert', str(self.format(record) + '\n'))

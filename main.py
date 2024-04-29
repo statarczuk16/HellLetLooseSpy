@@ -35,8 +35,8 @@ def create_resource_frame(gui_parent, commander):
         ttk.Label(frame, text='500', name="fuel_count").grid(column=7, row=0)
         ttk.Label(frame, text='30 /min', name="fuel_gain").grid(column=8, row=0)
 
-        for widget in frame.winfo_children():
-            widget.grid(padx=5, pady=5)
+       # for widget in frame.winfo_children():
+        #    widget.grid(padx=5, pady=5)
 
         return frame
     except Exception as ex:
@@ -46,45 +46,46 @@ def create_resource_frame(gui_parent, commander):
 def create_tc_frame(gui_parent, commander):
     try:
         frame = ttk.Frame(gui_parent, name="tc_frame")
+
         row = 0
         ttk.Label(frame, text='Tank Commander Panel').grid(column=0, row=row)
         row+=1
         ttk.Label(frame, text='Enemy Heavies Possible:').grid(column=0,row=row)
-        ttk.Label(frame, text='0').grid(column=1, row=row)
+        ttk.Label(frame, name='label_HEAVIES_UP', text='0').grid(column=1, row=row)
         row += 1
         ttk.Label(frame, text='Enemy Medium is :').grid(column=0, row=row)
-        ttk.Label(frame, text='UP').grid(column=1, row=row)
+        ttk.Label(frame, name='label_MEDIUM_UP', text='UP').grid(column=1, row=row)
         row += 1
         ttk.Label(frame, text='Enemy Recon is :').grid(column=0, row=row)
-        ttk.Label(frame, text='UP').grid(column=1, row=row)
+        ttk.Label(frame, name='label_RECON_UP', text='UP').grid(column=1, row=row)
         row += 1
         ttk.Label(frame, text='Enemy Light is :').grid(column=0, row=row)
-        ttk.Label(frame, text='UP').grid(column=1, row=row)
+        ttk.Label(frame, name='label_LIGHT_UP', text='UP').grid(column=1, row=row)
         row += 1
         ttk.Label(frame, text='Precision Strike is :').grid(column=0, row=row)
-        ttk.Label(frame, text='DOWN').grid(column=1, row=row)
+        ttk.Label(frame,  name='label_PRECISION_UP', text='DOWN').grid(column=1, row=row)
         row += 1
 
         ttk.Label(frame, text='Record Destroyed Vehicle').grid(column=0, row=row)
         row += 1
 
-        ttk.Button(frame, name='button_LIGHT_TANK_KILLED', command=lambda: commander.use_ability("LIGHT_TANK_KILLED"),
+        ttk.Button(frame, name='button_LIGHT_TANK_KILLED', command=lambda: commander.record_loss("LIGHT_TANK_KILLED"),
                    text='Light Tank', width=common.BUTTON_WIDTH).grid(column=0, row=row)
-        ttk.Button(frame, name='button_MEDIUM_TANK_KILLED', command=lambda: commander.use_ability("MEDIUM_TANK_KILLED"),
+        ttk.Button(frame, name='button_MEDIUM_TANK_KILLED', command=lambda: commander.record_loss("MEDIUM_TANK_KILLED"),
                    text='Medium Tank', width=common.BUTTON_WIDTH).grid(column=1, row=row)
-        ttk.Button(frame, name='button_HEAVY_TANK_KILLED', command=lambda: commander.use_ability("HEAVY_TANK_KILLED"),
+        ttk.Button(frame, name='button_HEAVY_TANK_KILLED', command=lambda: commander.record_loss("HEAVY_TANK_KILLED"),
                    text='Heavy Tank', width=common.BUTTON_WIDTH).grid(column=2, row=row)
         row +=1
-        ttk.Button(frame, name='button_HALFTRACK_KILLED', command=lambda: commander.use_ability("HALFTRACK_KILLED"),
+        ttk.Button(frame, name='button_HALFTRACK_KILLED', command=lambda: commander.record_loss("HALFTRACK_KILLED"),
                    text='Halftrack', width=common.BUTTON_WIDTH).grid(column=0, row=row)
-        ttk.Button(frame, name='button_RECON_TANK_KILLED', command=lambda: commander.use_ability("RECON_TANK_KILLED"),
+        ttk.Button(frame, name='button_RECON_TANK_KILLED', command=lambda: commander.record_loss("RECON_TANK_KILLED"),
                    text='Recon Tank', width=common.BUTTON_WIDTH).grid(column=1, row=row)
         row +=1
         ttk.Button(frame, name='button_PRECISION_STRIKE_USED', command=lambda: commander.use_ability("PRECISION_STRIKE"),
                    text='Record Precision Strike', width=common.BUTTON_WIDTH).grid(column=1, row=row)
 
-        for widget in frame.winfo_children():
-            widget.grid(padx=5, pady=5)
+        #for widget in frame.winfo_children():
+        #    widget.grid(padx=5, pady=5)
 
         return frame
     except Exception as ex:
@@ -98,13 +99,15 @@ def create_log_frame(gui_parent, commander):
         log_text = ScrolledText(frame)
         log_text.pack(fill=tk.BOTH, expand=True)
 
+        logging.basicConfig(filename='myapp.log', level=logging.INFO)
         widget_logger = hll_logger.WidgetLogger(log_text, logging.INFO, '%(message)s')
-        logger = logging.getLogger("HLLLogger")
+        logger = logging.getLogger()
         logger.addHandler(widget_logger)
-        logger.info("Logger Initialized")
+        logging.info("Program Start")
+        logging.debug("Debug output enabled")
 
-        for widget in frame.winfo_children():
-            widget.grid(padx=5, pady=5)
+        #for widget in frame.winfo_children():
+        #    widget.grid(padx=5, pady=5)
 
         return frame
     except Exception as ex:
@@ -135,28 +138,27 @@ def create_button_frame(gui_parent, commander):
                    text='Recon Plane', width=common.BUTTON_WIDTH).grid(column=1, row=munitions_row)
         ttk.Progressbar(frame, name='progress_RECON_PLANE', orient='horizontal', mode='determinate',
                         length=common.PROGRESS_WIDTH).grid(column=1, row=prog_bar)
+        ttk.Button(frame, name='button_PRECISION_STRIKE', command=lambda: commander.use_ability("PRECISION_STRIKE"),
+                   text='Precision Strike', width=common.BUTTON_WIDTH).grid(column=2, row=munitions_row)
+        ttk.Progressbar(frame, name='progress_PRECISION_STRIKE', orient='horizontal', mode='determinate',
+                        length=common.PROGRESS_WIDTH).grid(column=2, row=prog_bar)
 
         munitions_row += 2
         prog_bar = munitions_row + 1
-        ttk.Button(frame, name='button_PRECISION_STRIKE', command=lambda: commander.use_ability("PRECISION_STRIKE"),
-                   text='Precision Strike', width=common.BUTTON_WIDTH).grid(column=0, row=munitions_row)
-        ttk.Progressbar(frame, name='progress_PRECISION_STRIKE', orient='horizontal', mode='determinate',
-                        length=common.PROGRESS_WIDTH).grid(column=0, row=prog_bar)
-        ttk.Button(frame, name='button_BOMBING_RUN', command=lambda: commander.use_ability("BOMBING_RUN"),
-                   text='Bombing Run', width=common.BUTTON_WIDTH).grid(column=1, row=munitions_row)
-        ttk.Progressbar(frame, name='progress_BOMBING_RUN', orient='horizontal', mode='determinate',
-                        length=common.PROGRESS_WIDTH).grid(column=1, row=prog_bar)
 
-        munitions_row += 2
+        ttk.Button(frame, name='button_BOMBING_RUN', command=lambda: commander.use_ability("BOMBING_RUN"),
+                   text='Bombing Run', width=common.BUTTON_WIDTH).grid(column=0, row=munitions_row)
+        ttk.Progressbar(frame, name='progress_BOMBING_RUN', orient='horizontal', mode='determinate',
+                        length=common.PROGRESS_WIDTH).grid(column=0, row=prog_bar)
         prog_bar = munitions_row + 1
         ttk.Button(frame, name='button_ROCKET_STRIKE', command=lambda: commander.use_ability("ROCKET_STRIKE"),
-                   text='Katyusha Run', width=common.BUTTON_WIDTH).grid(column=0, row=munitions_row)
+                   text='Katyusha Run', width=common.BUTTON_WIDTH).grid(column=1, row=munitions_row)
         ttk.Progressbar(frame, name='progress_ROCKET_STRIKE', orient='horizontal', mode='determinate',
-                        length=common.PROGRESS_WIDTH).grid(column=0, row=prog_bar)
-        ttk.Button(frame, name='button_STRAFING_RUN', command=lambda: commander.use_ability("STRAFING_RUN"),
-                   text='Strafing Run', width=common.BUTTON_WIDTH).grid(column=1, row=munitions_row)
-        ttk.Progressbar(frame, name='progress_STRAFING_RUN', orient='horizontal', mode='determinate',
                         length=common.PROGRESS_WIDTH).grid(column=1, row=prog_bar)
+        ttk.Button(frame, name='button_STRAFING_RUN', command=lambda: commander.use_ability("STRAFING_RUN"),
+                   text='Strafing Run', width=common.BUTTON_WIDTH).grid(column=2, row=munitions_row)
+        ttk.Progressbar(frame, name='progress_STRAFING_RUN', orient='horizontal', mode='determinate',
+                        length=common.PROGRESS_WIDTH).grid(column=2, row=prog_bar)
 
         ### Fuel Buttons
         fuel_row = munitions_row + 2
@@ -173,28 +175,26 @@ def create_button_frame(gui_parent, commander):
                    text='Light Tank', width=common.BUTTON_WIDTH).grid(column=1, row=fuel_row)
         ttk.Progressbar(frame, name='progress_LIGHT_TANK', orient='horizontal', mode='determinate',
                         length=common.PROGRESS_WIDTH).grid(column=1, row=prog_bar)
-
-        fuel_row += 2
-        prog_bar = fuel_row + 1
         ttk.Button(frame, name='button_MEDIUM_TANK', command=lambda: commander.use_ability("MEDIUM_TANK"),
-                   text='Medium Tank', width=common.BUTTON_WIDTH).grid(column=0, row=fuel_row)
+                   text='Medium Tank', width=common.BUTTON_WIDTH).grid(column=2, row=fuel_row)
         ttk.Progressbar(frame, name='progress_MEDIUM_TANK', orient='horizontal', mode='determinate',
-                        length=common.PROGRESS_WIDTH).grid(column=0, row=prog_bar)
-        ttk.Button(frame, name='button_HEAVY_TANK', command=lambda: commander.use_ability("HEAVY_TANK"),
-                   text='Heavy Tank', width=common.BUTTON_WIDTH).grid(column=1, row=fuel_row)
-        ttk.Progressbar(frame, name='progress_HEAVY_TANK', orient='horizontal', mode='determinate',
-                        length=common.PROGRESS_WIDTH).grid(column=1, row=prog_bar)
+                        length=common.PROGRESS_WIDTH).grid(column=2, row=prog_bar)
 
         fuel_row += 2
         prog_bar = fuel_row + 1
-        ttk.Button(frame, name='button_HALFTRACK', command=lambda: commander.use_ability("HALFTRACK"), text='Halftrack',
-                   width=common.BUTTON_WIDTH).grid(column=0, row=fuel_row)
-        ttk.Progressbar(frame, name='progress_HALFTRACK', orient='horizontal', mode='determinate',
+
+        ttk.Button(frame, name='button_HEAVY_TANK', command=lambda: commander.use_ability("HEAVY_TANK"),
+                   text='Heavy Tank', width=common.BUTTON_WIDTH).grid(column=0, row=fuel_row)
+        ttk.Progressbar(frame, name='progress_HEAVY_TANK', orient='horizontal', mode='determinate',
                         length=common.PROGRESS_WIDTH).grid(column=0, row=prog_bar)
-        ttk.Button(frame, name='button_JEEP', command=lambda: commander.use_ability("JEEP"), text='Jeep',
+        ttk.Button(frame, name='button_HALFTRACK', command=lambda: commander.use_ability("HALFTRACK"), text='Halftrack',
                    width=common.BUTTON_WIDTH).grid(column=1, row=fuel_row)
-        ttk.Progressbar(frame, name='progress_JEEP', orient='horizontal', mode='determinate',
+        ttk.Progressbar(frame, name='progress_HALFTRACK', orient='horizontal', mode='determinate',
                         length=common.PROGRESS_WIDTH).grid(column=1, row=prog_bar)
+        ttk.Button(frame, name='button_JEEP', command=lambda: commander.use_ability("JEEP"), text='Jeep',
+                   width=common.BUTTON_WIDTH).grid(column=2, row=fuel_row)
+        ttk.Progressbar(frame, name='progress_JEEP', orient='horizontal', mode='determinate',
+                        length=common.PROGRESS_WIDTH).grid(column=2, row=prog_bar)
 
         ### Manpower Buttons
         man_row = fuel_row + 2
@@ -212,18 +212,38 @@ def create_button_frame(gui_parent, commander):
         ttk.Progressbar(frame, name='progress_REINFORCE', orient='horizontal', mode='determinate',
                         length=common.PROGRESS_WIDTH).grid(column=1, row=prog_bar)
 
-        man_row += 2
-        prog_bar = man_row + 1
         encourage_button = ttk.Button(frame, name='button_ENCOURAGE',
                                       command=lambda: commander.use_ability("ENCOURAGE"), text='Encourage',
                                       width=common.BUTTON_WIDTH)
-        encourage_button.grid(column=0, row=man_row)
+        encourage_button.grid(column=2, row=man_row)
         encourage_tip = Hovertip(encourage_button, 'App will assume encourage is being used when manpower is available')
         ttk.Progressbar(frame, name='progress_ENCOURAGE', orient='horizontal', mode='determinate',
+                        length=common.PROGRESS_WIDTH).grid(column=2, row=prog_bar)
+
+        ### Natural Spawns
+        nat_row = man_row + 2
+        prog_bar = nat_row + 1
+        ttk.Label(frame, text='Natural Spawns').grid(column=0, row=nat_row)
+        nat_row += 2
+        prog_bar = nat_row + 1
+        ttk.Button(frame, name='button_FREE_RECON_TANK_RESPAWN_TIME',text='Natural Scout Tank Respawn',
+                   width=common.BUTTON_WIDTH).grid(column=0, row=nat_row)
+        ttk.Progressbar(frame, name='progress_FREE_RECON_TANK_RESPAWN_TIME', orient='horizontal', mode='determinate',
                         length=common.PROGRESS_WIDTH).grid(column=0, row=prog_bar)
 
-        for widget in frame.winfo_children():
-            widget.grid(padx=5, pady=5)
+        ttk.Button(frame, name='button_FREE_LIGHT_TANK_RESPAWN_TIME', text='Natural Light Tank Respawn',
+                   width=common.BUTTON_WIDTH).grid(column=1, row=nat_row)
+        ttk.Progressbar(frame, name='progress_FREE_LIGHT_TANK_RESPAWN_TIME', orient='horizontal', mode='determinate',
+                        length=common.PROGRESS_WIDTH).grid(column=1, row=prog_bar)
+
+        ttk.Button(frame, name='button_FREE_MEDIUM_TANK_RESPAWN_TIME', text='Natural Medium Tank Respawn',
+                   width=common.BUTTON_WIDTH).grid(column=2, row=nat_row)
+        ttk.Progressbar(frame, name='progress_FREE_MEDIUM_TANK_RESPAWN_TIME', orient='horizontal', mode='determinate',
+                        length=common.PROGRESS_WIDTH).grid(column=2, row=prog_bar)
+
+
+        #for widget in frame.winfo_children():
+        #    widget.grid(padx=5, pady=5)
 
 
 
@@ -233,6 +253,8 @@ def create_button_frame(gui_parent, commander):
         print(str(ex))
 
 
+async def restart_match_async():
+    await commander.restart_match()
 
 
 def create_config_frame(gui_parent, commander):
@@ -335,7 +357,7 @@ def create_config_frame(gui_parent, commander):
         entry.insert(0, '3')
         config_row += 1
 
-        ttk.Button(frame, name='button_RESTART', command=lambda: commander.restart_match(), text='Restart Match',
+        ttk.Button(frame, name='button_RESTART', command=lambda: asyncio.create_task(restart_match_async()), text='Restart Match',
                    width=common.BUTTON_WIDTH).grid(column=0, row=config_row)
 
         config_row += 1
@@ -372,7 +394,7 @@ def on_closing(commander):
 
 async def run_gui(commander):
     commander.gui_root.title('Hell Let Loose Tank Commander Assistant')
-    commander.gui_root.resizable(0, 0)
+    #commander.gui_root.resizable(0, 0)
     try:
         # windows only (remove the minimize/maximize button)
         commander.gui_root.attributes('-toolwindow', True)
@@ -380,61 +402,54 @@ async def run_gui(commander):
         print('Not supported on your platform')
 
     try:
+        #commander.gui_root.maxsize(800, 500)
         commander.gui_root.protocol("WM_DELETE_WINDOW", lambda: on_closing(commander))
+
+        commander.gui_root.minsize(800, 600)
+        base_frame = tk.Frame(commander.gui_root)
+        base_frame.pack(fill="both",expand=True)
+
         # layout on the root window
 
-        resource_frame = create_resource_frame(gui_parent=commander.gui_root, commander=commander)
-        resource_frame.pack()
+        #### Header for resource counts
+        resource_frame = create_resource_frame(gui_parent=base_frame, commander=commander)
+        resource_frame.grid(row=0, column=0, sticky="nw")
+        resource_frame.configure(borderwidth=2, relief=tk.SUNKEN)
+        commander.gui_root.rowconfigure(0, weight=1)
         commander.resource_frame = resource_frame
 
-        notebook = ttk.Notebook(commander.gui_root)
-        notebook.pack(fill=tk.BOTH, expand=False)
+        #### Logger f
+        logger_frame = create_log_frame(gui_parent=base_frame, commander=commander)
+        logger_frame.grid(row=3, column=0, sticky="nw")
+        logger_frame.configure(borderwidth=2, relief=tk.SUNKEN)
+        commander.gui_root.rowconfigure(0, weight=5)
+        commander.logger_frame = logger_frame
+
+        #### Notebook tabs
+        notebook = ttk.Notebook(base_frame)
+        notebook.grid(row=2, column=0, sticky="nw")
+        commander.gui_root.rowconfigure(0, weight=2)
         commander.gui_root.notebook = notebook
 
-        paned_window = ttk.PanedWindow(notebook, orient=tk.VERTICAL)
-
-        button_frame = create_button_frame(gui_parent=paned_window, commander=commander)
-        button_frame.configure(borderwidth=2, relief=tk.SUNKEN)
-
-
-
-
-        #paned_window.add(resource_frame)
-        paned_window.add(button_frame)
-
-        notebook.add(paned_window, text="Commander Abilities")
-
-        commander.button_frame = button_frame
-
-
-        settings_frame = create_config_frame(gui_parent=notebook, commander=commander)
+        ## Settings (Notebook)
+        settings_frame = create_config_frame(gui_parent=base_frame, commander=commander)
         settings_frame.configure(borderwidth=2, relief=tk.SUNKEN)
-
         notebook.add(settings_frame, text="Configure")
         commander.settings_frame = settings_frame
 
-        paned_window_2 = ttk.PanedWindow(notebook, orient=tk.VERTICAL)
+        ## Commander Abilities (Notebook)
+        button_frame = create_button_frame(gui_parent=base_frame, commander=commander)
+        button_frame.configure(borderwidth=2, relief=tk.SUNKEN)
+        notebook.add(button_frame, text="Commander Abilities")
+        commander.button_frame = button_frame
 
-        logger_frame = create_log_frame(gui_parent=paned_window_2, commander=commander)
-        logger_frame.configure(borderwidth=2, relief=tk.SUNKEN)
-
-        tc_frame = create_tc_frame(gui_parent=paned_window_2, commander=commander)
+        ## TC (Notebook)
+        tc_frame = create_tc_frame(gui_parent=base_frame, commander=commander)
         tc_frame.configure(borderwidth=2, relief=tk.SUNKEN)
-
-        paned_window_2.add(tc_frame)
-        paned_window_2.add(logger_frame)
-
-        notebook.add(paned_window_2, text="Commander's Seat")
-
-        commander.logger_frame=logger_frame
+        notebook.add(tc_frame, text="Commander's Seat")
         commander.tc_frame = tc_frame
 
-        meme_frame = ttk.Frame(notebook, name="meme_frame")
-        ttk.Button(meme_frame, text='Troll', width=common.BUTTON_WIDTH).pack()
-        notebook.add(meme_frame, text="Scythe and Wix's Seat")
 
-
-        commander.gui_root.geometry("600x800")
 
     except Exception as ex:
         print("Exception in run_gui")
@@ -474,9 +489,10 @@ if __name__ == '__main__':
     tasks = [
         loop.create_task(run_gui(commander)),
         loop.create_task(commander.run_accumulator()),
-        loop.create_task(commander.command_team())
-
+        loop.create_task(commander.command_team()),
+        loop.create_task(commander.restart_match())
     ]
+
     loop.run_forever()
     loop.close()
 

@@ -24,14 +24,22 @@ class DummyCommander:
         self.logger_frame = None
         self.button_frame = None
         self.resource_frame = None
+        self.tc_frame = None
 
         self.recon_tank_alive = True
         self.medium_tank_alive = True
+        self.light_tank_alive = True
         self.heavy_tanks_alive = 0
 
         self.heavy_tanks_desired = 6
 
-
+        self.vehicle_lost_to_resource_cost = {
+            "RECON_TANK_KILLED": common.COST_RECON_TANK_FUEL,
+            "LIGHT_TANK_KILLED": common.COST_LIGHT_TANK_FUEL,
+            "MEDIUM_TANK_KILLED": common.COST_MEDIUM_TANK_FUEL,
+            "HEAVY_TANK_KILLED": common.COST_HEAVY_TANK_FUEL,
+            "HALFTRACK_KILLED": common.COST_HALFTRACK_FUEL,
+        }
 
         self.ability_to_active_cooldown_seconds = {}
         self.ability_to_resource_type = {
@@ -49,7 +57,10 @@ class DummyCommander:
             "MEDIUM_TANK": common.Resource.FUEL,
             "HEAVY_TANK": common.Resource.FUEL,
             "RECON_TANK": common.Resource.FUEL,
-            "JEEP": common.Resource.FUEL
+            "JEEP": common.Resource.FUEL,
+            "FREE_LIGHT_TANK_RESPAWN_TIME": common.Resource.FUEL,
+            "FREE_MEDIUM_TANK_RESPAWN_TIME": common.Resource.FUEL,
+            "FREE_RECON_TANK_RESPAWN_TIME": common.Resource.FUEL,
         }
 
         self.ability_to_resource_cost = {
@@ -68,6 +79,9 @@ class DummyCommander:
             "HEAVY_TANK": common.COST_HEAVY_TANK_FUEL,
             "RECON_TANK": common.COST_RECON_TANK_FUEL,
             "JEEP": common.COST_JEEP_FUEL,
+            "FREE_LIGHT_TANK_RESPAWN_TIME": 0,
+            "FREE_MEDIUM_TANK_RESPAWN_TIME": 0,
+            "FREE_RECON_TANK_RESPAWN_TIME": 0,
         }
 
         self.ability_to_cooldown_cost_minutes = {
@@ -86,7 +100,12 @@ class DummyCommander:
             "HEAVY_TANK": common.COOLDOWN_HEAVY_TANK_M,
             "RECON_TANK": common.COOLDOWN_RECON_TANK_M,
             "JEEP": common.COOLDOWN_JEEP_M,
+            "FREE_LIGHT_TANK_RESPAWN_TIME": common.COOLDOWN_LIGHT_TANK_M,
+            "FREE_MEDIUM_TANK_RESPAWN_TIME": common.COOLDOWN_MEDIUM_TANK_M,
+            "FREE_RECON_TANK_RESPAWN_TIME": common.COOLDOWN_RECON_TANK_M,
         }
+
+
 
 
     def gui_update_resources(self):
@@ -112,19 +131,26 @@ class DummyCommander:
             print("Exception in gui_update_resources")
             print(str(ex))
 
-    def restart_match(self, match_elapsed_time_s = 0):
+    async def restart_match(self, match_elapsed_time_s = 0):
         parent_frame = self.button_frame
-        self.clock.__init__()
+        await self.clock.restart()
         self.ability_to_active_cooldown_seconds.clear()
         self.tracker = resource_tracker.Tracker()
         self.gui_update_resources()
+        self.heavy_tanks_alive = 0
+        self.medium_tank_alive = True
+        self.recon_tank_alive = True
+        self.light_tank_alive = True
+        #start game with all abilities on cooldown
         for used_ability in self.ability_to_cooldown_cost_minutes:
-            self.ability_to_active_cooldown_seconds[used_ability] = self.ability_to_cooldown_cost_minutes[used_ability] * 60.0
-            button_name = "progress_" + used_ability
-            parent_frame.children[button_name]["value"] = 100
-            #gui_root.children['button_frame'].children[button_name]["text"] = str(self.ability_to_active_cooldown_seconds[used_ability])
-            button_name = "button_" + used_ability
-            parent_frame.children[button_name]["state"] = tkinter.DISABLED
+            if 'FREE' not in used_ability:#except for natural spawn counter
+                self.ability_to_active_cooldown_seconds[used_ability] = self.ability_to_cooldown_cost_minutes[used_ability] * 60.0
+                button_name = "progress_" + used_ability
+                parent_frame.children[button_name]["value"] = 100
+                #gui_root.children['button_frame'].children[button_name]["text"] = str(self.ability_to_active_cooldown_seconds[used_ability])
+                button_name = "button_" + used_ability
+                parent_frame.children[button_name]["state"] = tkinter.DISABLED
+        logging.info("New match started")
 
     def set_game_clock_from_string(self, new_time_string):
         try:
@@ -146,7 +172,7 @@ class DummyCommander:
         self.clock.advance_counter(time_skip_s * 1)
         minutes = round(time_skip_s / 60.0)
         print("Accumulating resources for " + str(minutes) + " minutes ")
-        self.tracker.accumuluate(minutes)
+        self.tracker.accumulate(minutes)
         for used_ability in self.ability_to_cooldown_cost_minutes:
             if used_ability in self.ability_to_active_cooldown_seconds:
                 self.ability_to_active_cooldown_seconds[used_ability] -= time_skip_s
@@ -156,32 +182,83 @@ class DummyCommander:
     def can_use_ability(self, ability):
         resource = self.ability_to_resource_type[ability]
         cost = self.ability_to_resource_cost[ability]
-        success = False
+        success = True
         reason = ""
-        if resource == common.Resource.FUEL and self.tracker.fuel >= cost and ability not in self.ability_to_active_cooldown_seconds:
-            success = True
-        elif resource == common.Resource.MANPOWER and self.tracker.manpower >= cost and ability not in self.ability_to_active_cooldown_seconds:
-            success = True
-        elif resource == common.Resource.MUNITIONS and self.tracker.munitions >= cost and ability not in self.ability_to_active_cooldown_seconds:
-            success = True
-        else:
-            if ability in self.ability_to_active_cooldown_seconds:
-                reason = ("Commander cannot use " + ability + " cooldown remaining " + str(
-                    self.ability_to_active_cooldown_seconds[ability]) + " seconds")
-            else:
-                reason = ("Commander cannot use " + ability + " cost too much: " + str(cost))
+
+        if ability in self.ability_to_active_cooldown_seconds:
+            reason = ("Commander cannot use " + ability + " cooldown remaining " + str(
+                self.ability_to_active_cooldown_seconds[ability]) + " seconds")
+            success = False
+        elif resource == common.Resource.FUEL and self.tracker.fuel < cost:
+            success = False
+            reason = ("Commander cannot use " + ability + " cost too much: " + str(cost))
+        elif resource == common.Resource.MANPOWER and self.tracker.manpower < cost:
+            success = False
+            reason = ("Commander cannot use " + ability + " cost too much: " + str(cost))
+        elif resource == common.Resource.MUNITIONS and self.tracker.munitions < cost:
+            success = False
+            reason = ("Commander cannot use " + ability + " cost too much: " + str(cost))
+        elif 'FREE' in ability:
+            if ability == 'FREE_LIGHT_TANK_RESPAWN_TIME':
+                if self.light_tank_alive:
+                    success = False
+                    reason = "Cannot start light tank respawn cooldown until light tank is destroyed"
+            elif ability == 'FREE_MEDIUM_TANK_RESPAWN_TIME':
+                if self.medium_tank_alive:
+                    success = False
+                    reason = "Cannot start medium tank respawn cooldown until light tank is destroyed"
+            elif ability == 'FREE_SCOUT_TANK_RESPAWN_TIME':
+                if self.recon_tank_alive:
+                    success = False
+                    reason = "Cannot start scout tank respawn cooldown until light tank is destroyed"
+
         return success, reason
 
-    def record_loss(self, lost):
+    def record_loss(self, vehicle_lost):
         try:
-            logger = logging.getLogger("HLLLogger")
+            logging.debug("Enemy " + vehicle_lost)
 
+            if vehicle_lost == "RECON_TANK_KILLED":
+                if self.recon_tank_alive == False:
+                    self.subtract_fuel(self.vehicle_lost_to_resource_cost[vehicle_lost])
+                    logging.info("Enemy " + vehicle_lost + " was not natural spawn. Subtracting fuel.")
+                else:
+                    self.recon_tank_alive = False
+                    self.use_ability('FREE_SCOUT_TANK_RESPAWN_TIME')
+                    logging.info("Enemy NATURAL RECON killed")
+            elif vehicle_lost == "LIGHT_TANK_KILLED":
+                if self.light_tank_alive == False:
+                    self.subtract_fuel(self.vehicle_lost_to_resource_cost[vehicle_lost])
+                    logging.info("Enemy " + vehicle_lost + " was not natural spawn. Subtracting fuel.")
+                else:
+                    self.light_tank_alive = False
+                    self.use_ability('FREE_LIGHT_TANK_RESPAWN_TIME')
+                    logging.info("Enemy NATURAL LIGHT killed")
+            elif vehicle_lost == "MEDIUM_TANK_KILLED":
+                if self.medium_tank_alive == False:
+                    self.subtract_fuel(self.vehicle_lost_to_resource_cost[vehicle_lost])
+                    logging.info("Enemy " + vehicle_lost + " was not natural spawn. Subtracting fuel.")
+                else:
+                    self.medium_tank_alive = False
+                    self.use_ability('FREE_MEDIUM_TANK_RESPAWN_TIME')
+                    logging.info("Enemy NATURAL MEDIUM killed")
+            elif vehicle_lost == "HALFTRACK_KILLED":
+                self.subtract_fuel(self.vehicle_lost_to_resource_cost[vehicle_lost])
+                logging.info("Enemy " + vehicle_lost + " was not natural spawn. Subtracting fuel.")
+            elif vehicle_lost == "HEAVY_TANK_KILLED":
+                self.heavy_tanks_alive -= 1
+                if self.heavy_tanks_alive < 0:
+                    logging.info("Enemy Heavy Tank was not expected to exist. Subtracting fuel.")
+                    self.subtract_fuel(self.vehicle_lost_to_resource_cost[vehicle_lost])
+                    self.heavy_tanks_alive = 0
+                else:
+                    logging.info("Enemy Heavy Tank was expected to exist. Fuel was already subtracted, earlier.")
         except Exception as ex:
-            print("Exception using commander ability: " + str(lost))
+            print("Exception using commander ability: " + str(vehicle_lost))
             print(str(ex))
     def use_ability(self, ability):
         try:
-            logger = logging.getLogger("HLLLogger")
+            logger = logging.getLogger()
             can_use, reason = self.can_use_ability(ability)
 
             if can_use:
@@ -194,6 +271,7 @@ class DummyCommander:
                 elif resource == common.Resource.MUNITIONS:
                     self.subtract_munitions(cost)
                 self.ability_to_active_cooldown_seconds[ability] = self.ability_to_cooldown_cost_minutes[ability] * 60.0
+
                 button_name = "button_" + ability
                 self.button_frame.children[button_name]["state"]=tkinter.DISABLED
                 button_name = "progress_" + ability
@@ -204,9 +282,6 @@ class DummyCommander:
                     self.gui_update_resources()
                 elif ability == "HEAVY_TANK":
                     self.heavy_tanks_alive += 1
-                elif ability == "FREE_MEDIUM_TANK":
-                    self.medium_tank_alive = True
-
                 logger.info("Commander used ability: " + ability)
             else:
                 logger.info("Commander cannot use ability " + ability + " because " + str(reason))
@@ -237,19 +312,24 @@ class DummyCommander:
 
     async def run_accumulator(self):
         while True:
-            print("Waiting for accumulation")
+            start_time = self.clock.get_game_clock_s()
             await self.clock.wait_for_time(common.ACCUMULATE_INTERVAL_S)
-            self.tracker.accumuluate(1)
+            end_time = self.clock.get_game_clock_s()
+            minutes_elapsed = int((start_time - end_time)/60)
+            self.tracker.accumulate(minutes_elapsed)
             self.gui_update_resources()
+
 
     async def command_team(self):
         while True:
             try:
                 await asyncio.sleep(1)
-
                 gui_parent = self.settings_frame
                 label_name = "label_" + "GAME_CLOCK"
                 game_clock_seconds = self.clock.get_game_clock_s()
+                if game_clock_seconds <= 0:
+                    self.clock.pause = True
+
                 game_clock_str = str(datetime.timedelta(seconds=game_clock_seconds))
 
 
@@ -286,6 +366,53 @@ class DummyCommander:
                 can_use, reason = self.can_use_ability("HEAVY_TANK")
                 if can_use and heavies_desired > self.heavy_tanks_alive:
                     self.use_ability("HEAVY_TANK")
+
+                #These abilities are not used here. They are automatically called when the natural tanks are reported
+                #destroyed. The abilities dont do anything except start a countdown timer.
+                #When the "ability" can be used, it means the countdown is over and it is time for the natural spawn
+
+                if self.recon_tank_alive == False:
+                    can_use, reason = self.can_use_ability("FREE_RECON_TANK_RESPAWN_TIME")
+                    if can_use:
+                        self.recon_tank_alive = True
+                        logging.info("Natural recon tank respawned")
+                if self.light_tank_alive == False:
+                    can_use, reason = self.can_use_ability("FREE_LIGHT_TANK_RESPAWN_TIME")
+                    if can_use:
+                        self.light_tank_alive = True
+                        logging.info("Natural light tank respawned")
+                if self.medium_tank_alive == False:
+                    can_use, reason = self.can_use_ability("FREE_MEDIUM_TANK_RESPAWN_TIME")
+                    if can_use:
+                        self.medium_tank_alive = True
+                        logging.info("Natural medium tank respawned")
+
+                can_use, reason = self.can_use_ability("PRECISION_STRIKE")
+                if can_use:
+                    self.tc_frame.children['label_PRECISION_UP']["text"] = "UP"
+                else:
+                    self.tc_frame.children['label_PRECISION_UP']["text"] = "DOWN"
+
+
+                if self.light_tank_alive == True:
+                    self.tc_frame.children['label_LIGHT_UP']["text"] = "UP"
+                else:
+                    self.tc_frame.children['label_LIGHT_UP']["text"] = "DOWN"
+
+                if self.recon_tank_alive == True:
+                    self.tc_frame.children['label_RECON_UP']["text"] = "UP"
+                else:
+                    self.tc_frame.children['label_RECON_UP']["text"] = "DOWN"
+
+                if self.medium_tank_alive == True:
+                    self.tc_frame.children['label_MEDIUM_UP']["text"] = "UP"
+                else:
+                    self.tc_frame.children['label_MEDIUM_UP']["text"] = "DOWN"
+
+                self.tc_frame.children['label_HEAVIES_UP']["text"] = str(self.heavy_tanks_alive)
+
+
+
 
 
 
