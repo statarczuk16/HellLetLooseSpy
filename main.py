@@ -3,6 +3,7 @@
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 import asyncio
+import logging
 import sys
 import tkinter
 import tkinter as tk
@@ -10,10 +11,12 @@ from tkinter import ttk, DISABLED, END, messagebox, scrolledtext
 from idlelib.tooltip import Hovertip
 from tkinter.scrolledtext import ScrolledText
 
+
 import common
 import game_clock
 import resource_tracker
 import commander
+import hll_logger
 
 
 def create_resource_frame(gui_parent, commander):
@@ -40,6 +43,53 @@ def create_resource_frame(gui_parent, commander):
         print("Exception in create_resource_frame")
         print(str(ex))
 
+def create_tc_frame(gui_parent, commander):
+    try:
+        frame = ttk.Frame(gui_parent, name="tc_frame")
+        row = 0
+        ttk.Label(frame, text='Tank Commander Panel').grid(column=0, row=row)
+        row+=1
+        ttk.Label(frame, text='Enemy Heavies Possible:').grid(column=0,row=row)
+        ttk.Label(frame, text='0').grid(column=1, row=row)
+        row += 1
+        ttk.Label(frame, text='Enemy Medium is :').grid(column=0, row=row)
+        ttk.Label(frame, text='UP').grid(column=1, row=row)
+        row += 1
+        ttk.Label(frame, text='Enemy Recon is :').grid(column=0, row=row)
+        ttk.Label(frame, text='UP').grid(column=1, row=row)
+        row += 1
+        ttk.Label(frame, text='Enemy Light is :').grid(column=0, row=row)
+        ttk.Label(frame, text='UP').grid(column=1, row=row)
+        row += 1
+        ttk.Label(frame, text='Precision Strike is :').grid(column=0, row=row)
+        ttk.Label(frame, text='DOWN').grid(column=1, row=row)
+        row += 1
+
+        ttk.Label(frame, text='Record Destroyed Vehicle').grid(column=0, row=row)
+        row += 1
+
+        ttk.Button(frame, name='button_LIGHT_TANK_KILLED', command=lambda: commander.use_ability("LIGHT_TANK_KILLED"),
+                   text='Light Tank', width=common.BUTTON_WIDTH).grid(column=0, row=row)
+        ttk.Button(frame, name='button_MEDIUM_TANK_KILLED', command=lambda: commander.use_ability("MEDIUM_TANK_KILLED"),
+                   text='Medium Tank', width=common.BUTTON_WIDTH).grid(column=1, row=row)
+        ttk.Button(frame, name='button_HEAVY_TANK_KILLED', command=lambda: commander.use_ability("HEAVY_TANK_KILLED"),
+                   text='Heavy Tank', width=common.BUTTON_WIDTH).grid(column=2, row=row)
+        row +=1
+        ttk.Button(frame, name='button_HALFTRACK_KILLED', command=lambda: commander.use_ability("HALFTRACK_KILLED"),
+                   text='Halftrack', width=common.BUTTON_WIDTH).grid(column=0, row=row)
+        ttk.Button(frame, name='button_RECON_TANK_KILLED', command=lambda: commander.use_ability("RECON_TANK_KILLED"),
+                   text='Recon Tank', width=common.BUTTON_WIDTH).grid(column=1, row=row)
+        row +=1
+        ttk.Button(frame, name='button_PRECISION_STRIKE_USED', command=lambda: commander.use_ability("PRECISION_STRIKE"),
+                   text='Record Precision Strike', width=common.BUTTON_WIDTH).grid(column=1, row=row)
+
+        for widget in frame.winfo_children():
+            widget.grid(padx=5, pady=5)
+
+        return frame
+    except Exception as ex:
+        print("Exception in create_log_frame")
+        print(str(ex))
 
 def create_log_frame(gui_parent, commander):
     try:
@@ -47,6 +97,11 @@ def create_log_frame(gui_parent, commander):
 
         log_text = ScrolledText(frame)
         log_text.pack(fill=tk.BOTH, expand=True)
+
+        widget_logger = hll_logger.WidgetLogger(log_text, logging.INFO, '%(message)s')
+        logger = logging.getLogger("HLLLogger")
+        logger.addHandler(widget_logger)
+        logger.info("Logger Initialized")
 
         for widget in frame.winfo_children():
             widget.grid(padx=5, pady=5)
@@ -59,13 +114,17 @@ def create_log_frame(gui_parent, commander):
 
 def create_button_frame(gui_parent, commander):
     try:
-        frame = ttk.Frame(gui_parent, name="button_frame")
+
+
+        frame = ttk.Frame(gui_parent, name="button_frame", width=400, height=650)
+        frame.grid(row=0,column=0)
+        frame.grid_propagate(False)
 
         munitions_row = 0
         prog_bar = munitions_row + 1
 
         ### Munitions Buttons
-        ttk.Label(frame, text='Click when ability observed').grid(column=0, row=munitions_row)
+        ttk.Label(frame, text='Munition Abilities').grid(column=0, row=munitions_row)
         munitions_row += 1
         prog_bar = munitions_row + 1
         ttk.Button(frame, name='button_SUPPLY_DROP', command=lambda: commander.use_ability("SUPPLY_DROP"),
@@ -102,7 +161,7 @@ def create_button_frame(gui_parent, commander):
         ### Fuel Buttons
         fuel_row = munitions_row + 2
         prog_bar = fuel_row + 1
-        ttk.Label(frame, text='Click when vehicle destroyed').grid(column=0, row=fuel_row)
+        ttk.Label(frame, text='Fuel Abilities').grid(column=0, row=fuel_row)
 
         fuel_row += 2
         prog_bar = fuel_row + 1
@@ -140,7 +199,7 @@ def create_button_frame(gui_parent, commander):
         ### Manpower Buttons
         man_row = fuel_row + 2
         prog_bar = man_row + 1
-        ttk.Label(frame, text='Click when ability observed').grid(column=0, row=man_row)
+        ttk.Label(frame, text='Manpower Abilities').grid(column=0, row=man_row)
         man_row += 2
         prog_bar = man_row + 1
         ttk.Button(frame, name='button_AIRHEAD', command=lambda: commander.use_ability("AIRHEAD"), text='Airhead',
@@ -165,11 +224,15 @@ def create_button_frame(gui_parent, commander):
 
         for widget in frame.winfo_children():
             widget.grid(padx=5, pady=5)
+
+
+
+        return frame
     except Exception as ex:
         print("Exception in create_button_frame")
         print(str(ex))
 
-    return frame
+
 
 
 def create_config_frame(gui_parent, commander):
@@ -264,6 +327,12 @@ def create_config_frame(gui_parent, commander):
                         command=lambda: commander.gui_update_resources(), value=3).grid(column=4, row=config_row,
                                                                                         sticky=tk.W)
 
+        config_row +=1
+
+        ttk.Label(frame, text='Heavy Tanks Desired').grid(column=0, row=config_row, sticky=tk.W)
+        entry = ttk.Entry(frame, name='entry_heavies_desired')
+        entry.grid(row=config_row, column=1, sticky=tk.W)
+        entry.insert(0, '3')
         config_row += 1
 
         ttk.Button(frame, name='button_RESTART', command=lambda: commander.restart_match(), text='Restart Match',
@@ -284,11 +353,13 @@ def create_config_frame(gui_parent, commander):
 
         for widget in frame.winfo_children():
             widget.grid(padx=5, pady=5)
+
+        return frame
     except Exception as ex:
         print("Exception in create_config_frame")
         print(str(ex))
 
-    return frame
+
 
 
 def on_closing(commander):
@@ -300,7 +371,7 @@ def on_closing(commander):
 
 
 async def run_gui(commander):
-    commander.gui_root.title('HLL Android Intelligence Officer - Track Enemy Resources and Cooldowns!')
+    commander.gui_root.title('Hell Let Loose Tank Commander Assistant')
     commander.gui_root.resizable(0, 0)
     try:
         # windows only (remove the minimize/maximize button)
@@ -312,39 +383,58 @@ async def run_gui(commander):
         commander.gui_root.protocol("WM_DELETE_WINDOW", lambda: on_closing(commander))
         # layout on the root window
 
-
-        notebook = ttk.Notebook(commander.gui_root)
-        notebook.pack(fill=tk.BOTH, expand=True)
-        commander.gui_root.notebook = notebook
-
-        actions_frame = ttk.Frame(notebook)
-        actions_frame.pack(fill=tk.BOTH, expand=True)
-
-        paned_window = ttk.PanedWindow(actions_frame, orient=tk.VERTICAL)
-        paned_window.pack(side=tk.TOP, anchor=tk.CENTER)
-        resource_frame = create_resource_frame(gui_parent=paned_window, commander=commander)
-        button_frame = create_button_frame(gui_parent=paned_window, commander=commander)
-        paned_window.add(resource_frame)
-        paned_window.add(button_frame)
-        notebook.add(actions_frame, text="Commander Abilities")
-        commander.button_frame = button_frame
+        resource_frame = create_resource_frame(gui_parent=commander.gui_root, commander=commander)
+        resource_frame.pack()
         commander.resource_frame = resource_frame
 
+        notebook = ttk.Notebook(commander.gui_root)
+        notebook.pack(fill=tk.BOTH, expand=False)
+        commander.gui_root.notebook = notebook
 
-        settings_frame = create_config_frame(gui_parent=commander.gui_root, commander=commander)
+        paned_window = ttk.PanedWindow(notebook, orient=tk.VERTICAL)
+
+        button_frame = create_button_frame(gui_parent=paned_window, commander=commander)
+        button_frame.configure(borderwidth=2, relief=tk.SUNKEN)
+
+
+
+
+        #paned_window.add(resource_frame)
+        paned_window.add(button_frame)
+
+        notebook.add(paned_window, text="Commander Abilities")
+
+        commander.button_frame = button_frame
+
+
+        settings_frame = create_config_frame(gui_parent=notebook, commander=commander)
+        settings_frame.configure(borderwidth=2, relief=tk.SUNKEN)
+
         notebook.add(settings_frame, text="Configure")
         commander.settings_frame = settings_frame
 
-        #logger_frame = ttk.Frame(notebook)
-        logger_frame = create_log_frame(gui_parent=notebook, commander=commander)
-        notebook.add(logger_frame, text="Log")
+        paned_window_2 = ttk.PanedWindow(notebook, orient=tk.VERTICAL)
+
+        logger_frame = create_log_frame(gui_parent=paned_window_2, commander=commander)
+        logger_frame.configure(borderwidth=2, relief=tk.SUNKEN)
+
+        tc_frame = create_tc_frame(gui_parent=paned_window_2, commander=commander)
+        tc_frame.configure(borderwidth=2, relief=tk.SUNKEN)
+
+        paned_window_2.add(tc_frame)
+        paned_window_2.add(logger_frame)
+
+        notebook.add(paned_window_2, text="Commander's Seat")
+
         commander.logger_frame=logger_frame
+        commander.tc_frame = tc_frame
 
-        test_tab = ttk.Frame(notebook)
-        ttk.Label(test_tab, text="test test").pack()
-        notebook.add(test_tab, text = "test")
+        meme_frame = ttk.Frame(notebook, name="meme_frame")
+        ttk.Button(meme_frame, text='Troll', width=common.BUTTON_WIDTH).pack()
+        notebook.add(meme_frame, text="Scythe and Wix's Seat")
 
-        commander.gui_root.geometry("800x600")
+
+        commander.gui_root.geometry("600x800")
 
     except Exception as ex:
         print("Exception in run_gui")

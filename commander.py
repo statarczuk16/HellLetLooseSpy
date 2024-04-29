@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import tkinter
 import datetime
 
@@ -23,6 +24,13 @@ class DummyCommander:
         self.logger_frame = None
         self.button_frame = None
         self.resource_frame = None
+
+        self.recon_tank_alive = True
+        self.medium_tank_alive = True
+        self.heavy_tanks_alive = 0
+
+        self.heavy_tanks_desired = 6
+
 
 
         self.ability_to_active_cooldown_seconds = {}
@@ -145,29 +153,46 @@ class DummyCommander:
         self.gui_update_resources()
 
 
+    def can_use_ability(self, ability):
+        resource = self.ability_to_resource_type[ability]
+        cost = self.ability_to_resource_cost[ability]
+        success = False
+        reason = ""
+        if resource == common.Resource.FUEL and self.tracker.fuel >= cost and ability not in self.ability_to_active_cooldown_seconds:
+            success = True
+        elif resource == common.Resource.MANPOWER and self.tracker.manpower >= cost and ability not in self.ability_to_active_cooldown_seconds:
+            success = True
+        elif resource == common.Resource.MUNITIONS and self.tracker.munitions >= cost and ability not in self.ability_to_active_cooldown_seconds:
+            success = True
+        else:
+            if ability in self.ability_to_active_cooldown_seconds:
+                reason = ("Commander cannot use " + ability + " cooldown remaining " + str(
+                    self.ability_to_active_cooldown_seconds[ability]) + " seconds")
+            else:
+                reason = ("Commander cannot use " + ability + " cost too much: " + str(cost))
+        return success, reason
 
+    def record_loss(self, lost):
+        try:
+            logger = logging.getLogger("HLLLogger")
+
+        except Exception as ex:
+            print("Exception using commander ability: " + str(lost))
+            print(str(ex))
     def use_ability(self, ability):
         try:
-            resource = self.ability_to_resource_type[ability]
-            cost = self.ability_to_resource_cost[ability]
-            success = False
-            if resource == common.Resource.FUEL and self.tracker.fuel >= cost and ability not in self.ability_to_active_cooldown_seconds:
-                success = True
-                self.subtract_fuel(cost)
-            elif resource == common.Resource.MANPOWER and self.tracker.manpower >= cost and ability not in self.ability_to_active_cooldown_seconds:
-                success = True
-                self.subtract_manpower(cost)
-            elif resource == common.Resource.MUNITIONS and self.tracker.munitions >= cost and ability not in self.ability_to_active_cooldown_seconds:
-                success = True
-                self.subtract_munitions(cost)
-            else:
-                if ability in self.ability_to_active_cooldown_seconds:
-                    print("Commander cannot use " + ability + " cooldown remaining " + str(self.ability_to_active_cooldown_seconds[ability]) + " seconds")
-                else:
-                    print("Commander cannot use " + ability + " cost too much: " + str(cost))
-            if success:
-                print("Commander used ability " + ability)
+            logger = logging.getLogger("HLLLogger")
+            can_use, reason = self.can_use_ability(ability)
 
+            if can_use:
+                resource = self.ability_to_resource_type[ability]
+                cost = self.ability_to_resource_cost[ability]
+                if resource == common.Resource.FUEL:
+                    self.subtract_fuel(cost)
+                elif resource == common.Resource.MANPOWER:
+                    self.subtract_manpower(cost)
+                elif resource == common.Resource.MUNITIONS:
+                    self.subtract_munitions(cost)
                 self.ability_to_active_cooldown_seconds[ability] = self.ability_to_cooldown_cost_minutes[ability] * 60.0
                 button_name = "button_" + ability
                 self.button_frame.children[button_name]["state"]=tkinter.DISABLED
@@ -177,6 +202,14 @@ class DummyCommander:
                 if ability == "ENCOURAGE":
                     self.tracker.encourage = True
                     self.gui_update_resources()
+                elif ability == "HEAVY_TANK":
+                    self.heavy_tanks_alive += 1
+                elif ability == "FREE_MEDIUM_TANK":
+                    self.medium_tank_alive = True
+
+                logger.info("Commander used ability: " + ability)
+            else:
+                logger.info("Commander cannot use ability " + ability + " because " + str(reason))
 
         except Exception as ex:
             print("Exception using commander ability: " + str(ability))
@@ -222,6 +255,7 @@ class DummyCommander:
 
                 gui_parent.children[label_name]["text"] = "Game Clock: " + game_clock_str
 
+                #Determine if an ability should come off cooldown
                 abilities_no_longer_on_cooldown = []
                 for used_ability in self.ability_to_active_cooldown_seconds:
 
@@ -234,7 +268,7 @@ class DummyCommander:
                     if self.ability_to_active_cooldown_seconds[used_ability] <= 0:
                         abilities_no_longer_on_cooldown.append(used_ability)
                         button_name = "button_" + used_ability
-                        self.gui_root.children['button_frame'].children[button_name]["state"] = tkinter.NORMAL
+                        self.button_frame.children[button_name]["state"] = tkinter.NORMAL
                         if used_ability == "ENCOURAGE":
                             self.tracker.encourage = False
                     elif self.ability_to_active_cooldown_seconds[used_ability] > self.ability_to_cooldown_cost_minutes[used_ability] * 60.0:
@@ -242,6 +276,17 @@ class DummyCommander:
 
                 for ability in abilities_no_longer_on_cooldown:
                     self.ability_to_active_cooldown_seconds.pop(ability, None)
+
+                #if can use encourage, always use it
+                can_use, reason = self.can_use_ability("ENCOURAGE")
+                if can_use:
+                    self.use_ability("ENCOURAGE")
+                heavies_desired = int(self.settings_frame.children['entry_heavies_desired'].get())
+                self.heavy_tanks_desired = heavies_desired
+                can_use, reason = self.can_use_ability("HEAVY_TANK")
+                if can_use and heavies_desired > self.heavy_tanks_alive:
+                    self.use_ability("HEAVY_TANK")
+
 
 
             except Exception as ex:

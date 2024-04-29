@@ -2,9 +2,9 @@
 import tkinter as tk
 import logging
 from time import sleep
-from ScrolledText import ScrolledText
 
-class widgetLogger(logging.Handler):
+
+class WidgetLogger(logging.Handler):
     # The init function needs the widget which will hold the log messages passed to it as
     # well as other basic information (log level, format, etc.)
 
@@ -18,6 +18,7 @@ class widgetLogger(logging.Handler):
 
         # The ScrolledText box must be disabled so users can't enter their own text
         self.widget.config(state='disabled')
+
 
     # This function is called when a log message is to be handled
     def emit(self, record):
