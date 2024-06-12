@@ -296,6 +296,8 @@ def create_config_frame(gui_parent, commander):
         commander.gui_root.munitions_node_gui = tkinter.IntVar(value=0)
         commander.gui_root.manpower_node_gui = tkinter.IntVar(value=0)
 
+
+
         ttk.Radiobutton(munition_node_frame, text="0", variable=commander.gui_root.munitions_node_gui,
                         command=lambda: commander.gui_update_resources(), value=0).grid(column=1, row=config_row,
                                                                                         sticky=tk.W)
@@ -346,6 +348,7 @@ def create_config_frame(gui_parent, commander):
         ttk.Radiobutton(munition_node_frame, text="3", variable=commander.gui_root.fuel_node_gui,
                         command=lambda: commander.gui_update_resources(), value=3).grid(column=4, row=config_row,
                                                                                         sticky=tk.W)
+
 
         config_row +=1
 
@@ -403,7 +406,7 @@ async def run_gui(commander):
         #commander.gui_root.maxsize(800, 500)
         commander.gui_root.protocol("WM_DELETE_WINDOW", lambda: on_closing(commander))
 
-        commander.gui_root.minsize(800, 600)
+        commander.gui_root.minsize(800, 300)
         base_frame = tk.Frame(commander.gui_root)
         base_frame.pack(fill="both",expand=True)
 

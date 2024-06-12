@@ -25,6 +25,7 @@ class DummyCommander:
         self.button_frame = None
         self.resource_frame = None
         self.tc_frame = None
+        self.openers = ["TRUCK", "TRUCK", "LIGHT_TANK"]
 
         self.recon_tank_alive = True
         self.medium_tank_alive = True
@@ -39,6 +40,7 @@ class DummyCommander:
             "MEDIUM_TANK_KILLED": common.COST_MEDIUM_TANK_FUEL,
             "HEAVY_TANK_KILLED": common.COST_HEAVY_TANK_FUEL,
             "HALFTRACK_KILLED": common.COST_HALFTRACK_FUEL,
+            "TRUCK_KILLED": common.COST_TRUCK_FUEL,
         }
 
         self.ability_to_active_cooldown_seconds = {}
@@ -61,6 +63,7 @@ class DummyCommander:
             "FREE_LIGHT_TANK_RESPAWN_TIME": common.Resource.FUEL,
             "FREE_MEDIUM_TANK_RESPAWN_TIME": common.Resource.FUEL,
             "FREE_RECON_TANK_RESPAWN_TIME": common.Resource.FUEL,
+            "TRUCK": common.Resource.FUEL,
         }
 
         self.ability_to_resource_cost = {
@@ -82,6 +85,7 @@ class DummyCommander:
             "FREE_LIGHT_TANK_RESPAWN_TIME": 0,
             "FREE_MEDIUM_TANK_RESPAWN_TIME": 0,
             "FREE_RECON_TANK_RESPAWN_TIME": 0,
+            "TRUCK": common.COST_TRUCK_FUEL,
         }
 
         self.ability_to_cooldown_cost_minutes = {
@@ -103,6 +107,7 @@ class DummyCommander:
             "FREE_LIGHT_TANK_RESPAWN_TIME": common.COOLDOWN_LIGHT_TANK_M,
             "FREE_MEDIUM_TANK_RESPAWN_TIME": common.COOLDOWN_MEDIUM_TANK_M,
             "FREE_RECON_TANK_RESPAWN_TIME": common.COOLDOWN_RECON_TANK_M,
+            "TRUCK": common.COOLDOWN_TRUCK_M,
         }
 
 
@@ -141,15 +146,17 @@ class DummyCommander:
         self.medium_tank_alive = True
         self.recon_tank_alive = True
         self.light_tank_alive = True
+        self.openers = ["TRUCK", "TRUCK", "LIGHT_TANK"]
         #start game with all abilities on cooldown
         for used_ability in self.ability_to_cooldown_cost_minutes:
             if 'FREE' not in used_ability:#except for natural spawn counter
                 self.ability_to_active_cooldown_seconds[used_ability] = self.ability_to_cooldown_cost_minutes[used_ability] * 60.0
                 button_name = "progress_" + used_ability
-                parent_frame.children[button_name]["value"] = 100
-                #gui_root.children['button_frame'].children[button_name]["text"] = str(self.ability_to_active_cooldown_seconds[used_ability])
-                button_name = "button_" + used_ability
-                parent_frame.children[button_name]["state"] = tkinter.DISABLED
+                if button_name in parent_frame.children:
+                    parent_frame.children[button_name]["value"] = 100
+                    #gui_root.children['button_frame'].children[button_name]["text"] = str(self.ability_to_active_cooldown_seconds[used_ability])
+                    button_name = "button_" + used_ability
+                    parent_frame.children[button_name]["state"] = tkinter.DISABLED
         logging.info("New match started")
 
     def set_game_clock_from_string(self, new_time_string):
@@ -272,10 +279,13 @@ class DummyCommander:
                     self.subtract_munitions(cost)
                 self.ability_to_active_cooldown_seconds[ability] = self.ability_to_cooldown_cost_minutes[ability] * 60.0
 
+
                 button_name = "button_" + ability
-                self.button_frame.children[button_name]["state"]=tkinter.DISABLED
+                if button_name in self.button_frame.children:
+                    self.button_frame.children[button_name]["state"]=tkinter.DISABLED
                 button_name = "progress_" + ability
-                self.button_frame.children[button_name]["value"] = 100
+                if button_name in self.button_frame.children:
+                    self.button_frame.children[button_name]["value"] = 100
 
                 if ability == "ENCOURAGE":
                     self.tracker.encourage = True
@@ -341,14 +351,18 @@ class DummyCommander:
 
                     self.ability_to_active_cooldown_seconds[used_ability] -= 1 * common.time_scale_global.get()
                     button_name = "progress_" + used_ability
+
                     value = self.ability_to_active_cooldown_seconds[used_ability] / (self.ability_to_cooldown_cost_minutes[used_ability] * 60.0)
                     value *= 100.0
-                    self.button_frame.children[button_name]["value"] = value
+                    if button_name in self.button_frame.children:
+                        self.button_frame.children[button_name]["value"] = value
+
 
                     if self.ability_to_active_cooldown_seconds[used_ability] <= 0:
                         abilities_no_longer_on_cooldown.append(used_ability)
                         button_name = "button_" + used_ability
-                        self.button_frame.children[button_name]["state"] = tkinter.NORMAL
+                        if button_name in  self.button_frame.children:
+                            self.button_frame.children[button_name]["state"] = tkinter.NORMAL
                         if used_ability == "ENCOURAGE":
                             self.tracker.encourage = False
                     elif self.ability_to_active_cooldown_seconds[used_ability] > self.ability_to_cooldown_cost_minutes[used_ability] * 60.0:
@@ -410,6 +424,18 @@ class DummyCommander:
                     self.tc_frame.children['label_MEDIUM_UP']["text"] = "DOWN"
 
                 self.tc_frame.children['label_HEAVIES_UP']["text"] = str(self.heavy_tanks_alive)
+
+                for opener_option in self.openers:
+                    can_use, reason = self.can_use_ability(opener_option)
+                    if can_use:
+                        self.use_ability(opener_option)
+                        logging.info('Commander used opener ' + opener_option)
+                        self.openers.remove(opener_option)
+                if not self.openers:
+                    logging.info('Opener done. Building nodes')
+                    self.gui_root.fuel_node_gui.set(3)
+                    self.gui_root.munitions_node_gui.set(3)
+                    self.gui_root.manpower_node_gui.set(3)
 
 
 
