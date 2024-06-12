@@ -121,7 +121,6 @@ def create_button_frame(gui_parent, commander):
 
         frame = ttk.Frame(gui_parent, name="button_frame", width=400, height=650)
         frame.grid(row=0,column=0)
-        frame.grid_propagate(False)
 
         munitions_row = 0
         prog_bar = munitions_row + 1
@@ -255,12 +254,11 @@ def create_button_frame(gui_parent, commander):
 
 async def restart_match_async():
     await commander.restart_match()
-
+''
 
 def create_config_frame(gui_parent, commander):
     try:
         frame = ttk.Frame(gui_parent, name="config_frame")
-
         # grid layout for the input frame
         # frame.columnconfigure(0, weight=1)
         # frame.columnconfigure(0, weight=3)
@@ -418,6 +416,7 @@ async def run_gui(commander):
         commander.gui_root.rowconfigure(0, weight=1)
         commander.resource_frame = resource_frame
 
+
         #### Logger f
         logger_frame = create_log_frame(gui_parent=base_frame, commander=commander)
         logger_frame.grid(row=3, column=0, sticky="nw")
@@ -426,7 +425,7 @@ async def run_gui(commander):
         commander.logger_frame = logger_frame
 
         #### Notebook tabs
-        notebook = ttk.Notebook(base_frame)
+        notebook = ttk.Notebook(base_frame, width=600, height=400)
         notebook.grid(row=2, column=0, sticky="nw")
         commander.gui_root.rowconfigure(0, weight=2)
         commander.gui_root.notebook = notebook
